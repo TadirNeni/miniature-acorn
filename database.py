@@ -1,14 +1,16 @@
 import sqlite3
 import os
 
-DB_NAME = "ids_database.db"
+# Get the absolute path to the directory this file is in
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Join that directory with the database file name
+DB_NAME = os.path.join(BASE_DIR, "ids_database.db")
 
 def init_db():
     """Initializes the SQLite database and creates required tables."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Create alerts table (Section 4.3.2)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS alerts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,7 +26,6 @@ def init_db():
         )
     ''')
 
-    # Create system_log table (Section 4.3.2)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS system_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,14 +37,13 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print(f"[+] Database '{DB_NAME}' initialized successfully with 'alerts' and 'system_log' tables.")
+    print(f"[+] Database initialized successfully at: {DB_NAME}")
 
 def get_db_connection():
     """Returns a database connection for other modules to use."""
     conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row # Allows name-based access to columns
+    conn.row_factory = sqlite3.Row 
     return conn
 
 if __name__ == "__main__":
-    # Run this script directly once to create the database file
     init_db()
