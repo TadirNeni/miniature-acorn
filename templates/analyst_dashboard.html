@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDS | Live Analyst Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Consolas', monospace; }
+        .navbar { background-color: #000 !important; border-bottom: 2px solid #333; }
+        .traffic-table th { background-color: #1e1e1e; color: #888; border-bottom: 2px solid #333; }
+        .traffic-table td { border-bottom: 1px solid #222; vertical-align: middle; }
+        .alert-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark px-4 py-3">
+        <span class="navbar-brand fw-bold text-primary"><i class="fas fa-radar"></i> SOC ANALYST TERMINAL</span>
+        <div class="d-flex align-items-center">
+            <span class="me-4 text-success"><i class="fas fa-circle ms-1 small"></i> Live Capture Engine Online</span>
+            <a href="/logout" class="btn btn-outline-danger btn-sm fw-bold">DISCONNECT</a>
+        </div>
+    </nav>
+
+    <div class="container-fluid p-4">
+        <div id="status-banner" class="alert alert-secondary mb-4 p-4 shadow-sm border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 text-uppercase text-secondary">Current Network Status</h5>
+                <h2 id="current-threat" class="mb-0 fw-bold">LISTENING FOR TRAFFIC...</h2>
+            </div>
+            <i id="status-icon" class="fas fa-shield-halved fa-4x text-secondary opacity-50"></i>
+        </div>
+
+        <h5 class="text-secondary mb-3"><i class="fas fa-list"></i> Packet Flow History</h5>
+        <div class="table-responsive bg-dark p-3 rounded border border-secondary">
+            <table class="table table-dark table-hover traffic-table mb-0">
+                <thead>
+                    <tr>
+                        <th>TIME</th>
+                        <th>DEST PORT</th>
+                        <th>PROTOCOL</th>
+                        <th>TOTAL FWD PACKETS</th>
+                        <th>FLOW DURATION (µs)</th>
+                        <th>ML CLASSIFICATION</th>
+                    </tr>
+                </thead>
+                <tbody id="live-traffic-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchLiveTraffic() {
+            try {
+                // Call the analyze route in app.py
+                const res = await fetch('/analyze');
+                const result = await res.json();
+                
+                // 1. Update the Big Banner
+                const banner = document.getElementById('status-banner');
+                const threatText = document.getElementById('current-threat');
+                const icon = document.getElementById('status-icon');
+
+                threatText.innerText = result.prediction.toUpperCase();
+                
+                if (result.status === 'danger') {
+                    banner.className = "alert alert-danger mb-4 p-4 shadow-sm border-0 d-flex justify-content-between align-items-center alert-pulse";
+                    icon.className = "fas fa-skull-crossbones fa-4x text-danger";
+                } else {
+                    banner.className = "alert alert-success mb-4 p-4 shadow-sm border-0 d-flex justify-content-between align-items-center";
+                    icon.className = "fas fa-check-circle fa-4x text-success";
+                }
+
+                // 2. Add Row to Table
+                const tbody = document.getElementById('live-traffic-body');
+                const time = new Date().toLocaleTimeString();
+                const port = result.data['Destination Port'] || 'N/A';
+                const proto = result.data['Protocol'] || 'N/A';
+                const pkts = result.data['Total Fwd Packets'] || 'N/A';
+                const duration = result.data['Flow Duration'] || 'N/A';
+                const badge = `<span class="badge bg-${result.status} p-2">${result.prediction}</span>`;
+
+                const newRow = `<tr class="fadeIn">
+                    <td>${time}</td>
+                    <td class="text-info">${port}</td>
+                    <td>${proto}</td>
+                    <td>${pkts}</td>
+                    <td class="text-warning">${duration}</td>
+                    <td>${badge}</td>
+                </tr>`;
+
+                tbody.insertAdjacentHTML('afterbegin', newRow);
+
+                // Keep table to 12 rows max
+                if(tbody.rows.length > 12) { tbody.deleteRow(-1); }
+
+            } catch (err) { console.log("Waiting for backend..."); }
+        }
+
+        // Poll the server every 2.5 seconds
+        setInterval(fetchLiveTraffic, 2500);
+    </script>
+</body>
+</html>
